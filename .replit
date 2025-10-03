@@ -1,6 +1,7 @@
 modules = ["python-3.11"]
-[agent]
-expertMode = true
+
+[nix]
+channel = "stable-25_05"
 
 [workflows]
 runButton = "Project"
@@ -12,20 +13,27 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Web Server"
+args = "Server"
 
 [[workflows.workflow]]
-name = "Web Server"
+name = "Server"
 author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python server.py"
+waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 -m http.server 5000"
-waitForPort = 5000
-
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 42489
+externalPort = 3000
+
+[agent]
+expertMode = true

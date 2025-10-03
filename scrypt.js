@@ -1,11 +1,57 @@
 const password = "111111";
 
 let isAdmin = sessionStorage.getItem('isAdmin') === 'true';
-let resources = JSON.parse(localStorage.getItem('resources')) || [];
-let commonLinks = JSON.parse(localStorage.getItem('commonLinks')) || [];
+let resources = [];
+let commonLinks = [];
 let titleCount = 1;
 let editTitleCount = 1;
 let currentEditId = null;
+
+async function loadResources() {
+    try {
+        const response = await fetch('/api/resources');
+        resources = await response.json();
+        migrateResourceData();
+    } catch (error) {
+        console.error('Error loading resources:', error);
+        resources = [];
+    }
+}
+
+async function saveResources() {
+    try {
+        await fetch('/api/resources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(resources)
+        });
+    } catch (error) {
+        console.error('Error saving resources:', error);
+    }
+}
+
+async function loadQuickLinks() {
+    try {
+        const response = await fetch('/api/quicklinks');
+        commonLinks = await response.json();
+        migrateQuickLinksData();
+    } catch (error) {
+        console.error('Error loading quick links:', error);
+        commonLinks = [];
+    }
+}
+
+async function saveQuickLinks() {
+    try {
+        await fetch('/api/quicklinks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(commonLinks)
+        });
+    } catch (error) {
+        console.error('Error saving quick links:', error);
+    }
+}
 
 function migrateResourceData() {
     let needsSave = false;
@@ -25,7 +71,7 @@ function migrateResourceData() {
     });
     
     if (needsSave) {
-        localStorage.setItem('resources', JSON.stringify(resources));
+        saveResources();
     }
 }
 
@@ -43,7 +89,7 @@ function migrateQuickLinksData() {
     });
     
     if (needsSave) {
-        localStorage.setItem('commonLinks', JSON.stringify(commonLinks));
+        saveQuickLinks();
     }
 }
 
@@ -170,7 +216,7 @@ addTitleBtn.onclick = () => {
     titlesContainer.appendChild(titleGroup);
 };
 
-publishBtn.onclick = () => {
+publishBtn.onclick = async () => {
     const displayName = outsideName.value.trim();
     const videoLink = videoLinkInput.value.trim();
     const linkGroups = document.querySelectorAll('#titlesContainer .title-input-group');
@@ -210,7 +256,7 @@ publishBtn.onclick = () => {
     };
 
     resources.push(resource);
-    localStorage.setItem('resources', JSON.stringify(resources));
+    await saveResources();
 
     outsideName.value = '';
     videoLinkInput.value = '';
@@ -427,10 +473,10 @@ function editResource(id) {
     openModal(editResourceModal);
 }
 
-function deleteResource(id) {
+async function deleteResource(id) {
     if (confirm('Are you sure you want to delete this resource?')) {
         resources = resources.filter(r => r.id !== id);
-        localStorage.setItem('resources', JSON.stringify(resources));
+        await saveResources();
         displayResources();
         showNotification('Resource deleted successfully!', 'success');
     }
@@ -447,7 +493,7 @@ editAddTitleBtn.onclick = () => {
     editTitlesContainer.appendChild(titleGroup);
 };
 
-updateBtn.onclick = () => {
+updateBtn.onclick = async () => {
     const displayName = editOutsideName.value.trim();
     const videoLink = editVideoLinkInput.value.trim();
     const linkGroups = document.querySelectorAll('#editTitlesContainer .title-input-group');
@@ -485,7 +531,7 @@ updateBtn.onclick = () => {
     resources[resourceIndex].links = links;
     delete resources[resourceIndex].titles;
     
-    localStorage.setItem('resources', JSON.stringify(resources));
+    await saveResources();
     closeModal(editResourceModal);
     displayResources();
     showNotification('Resource updated successfully!', 'success');
@@ -560,7 +606,7 @@ addQuickLinkBtn.onclick = () => {
     openModal(addQuickLinkModal);
 };
 
-saveQuickLinkBtn.onclick = () => {
+saveQuickLinkBtn.onclick = async () => {
     const name = quickLinkName.value.trim();
     const url = quickLinkUrl.value.trim();
     const description = quickLinkDesc.value.trim();
@@ -579,7 +625,7 @@ saveQuickLinkBtn.onclick = () => {
         buttonText
     });
 
-    localStorage.setItem('commonLinks', JSON.stringify(commonLinks));
+    await saveQuickLinks();
     closeModal(addQuickLinkModal);
     quickLinkName.value = '';
     quickLinkUrl.value = '';
@@ -589,10 +635,10 @@ saveQuickLinkBtn.onclick = () => {
     showNotification('Quick link added successfully!', 'success');
 };
 
-function deleteCommonLink(id) {
+async function deleteCommonLink(id) {
     if (confirm('Delete this quick link?')) {
         commonLinks = commonLinks.filter(l => l.id !== id);
-        localStorage.setItem('commonLinks', JSON.stringify(commonLinks));
+        await saveQuickLinks();
         displayCommonLinks();
         showNotification('Quick link deleted successfully!', 'success');
     }
@@ -632,13 +678,17 @@ function showNotification(message, type) {
     setTimeout(() => notification.remove(), 3000);
 }
 
-migrateResourceData();
-migrateQuickLinksData();
-initTheme();
-
-if (isAdmin) {
-    updateAdminUI();
-} else {
-    displayResources();
-    displayCommonLinks();
+async function init() {
+    await loadResources();
+    await loadQuickLinks();
+    initTheme();
+    
+    if (isAdmin) {
+        updateAdminUI();
+    } else {
+        displayResources();
+        displayCommonLinks();
+    }
 }
+
+init();
